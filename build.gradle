@@ -1,0 +1,73 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'checkstyle'
+    id 'jacoco'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+application {
+    mainClass = 'com.example.gitlog.Main'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+// Пример жесткого правила: минимум 70% для бизнес-логики (можно уточнить классы)
+// Для варианта 6 явного порога не дано, но покрытие обязательно — оставим проверку в CI.
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+checkstyle {
+    toolVersion = '10.12.1'
+    config = resources.text.fromString('''
+    <!DOCTYPE module PUBLIC
+            "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+            "https://checkstyle.org/dtds/configuration_1_3.dtd">
+    <module name="Checker">
+      <module name="TreeWalker">
+        <module name="JavadocMethod"/>
+        <module name="AvoidInlineConditionals"/>
+      </module>
+    </module>
+    ''')
+}
+
+tasks.register('fatJar', Jar) {
+    dependsOn configurations.runtimeClasspath, tasks.jar
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from sourceSets.main.output
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+    from {
+        configurations.runtimeClasspath.get().collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
